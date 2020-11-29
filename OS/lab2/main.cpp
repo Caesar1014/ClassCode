@@ -43,11 +43,14 @@ void time_control();
 void susp(int x);
 void wakeup();
 void show();
+
 void process_control(); //进程调度程序
+void create(PCB* p);
+void verify(string ID, PCB* p, int* tag);
 
 int main()
 {
-    initialize();
+    initial();
     int a, x;
     while (1)
     {
@@ -127,23 +130,36 @@ void initial()
         p = new PCB();
         cout << "输入 ID" << endl;
         cin >> p->ID;
-        cout << "输入进程名称" << endl;
-        cin >> p->name;
-        cout << "输入运行时间" << endl;
-        cin >> p->totalTime;
-        p->status = 0;
-        p->next = NULL;
-        p->remainingTime = p->totalTime;
-        p->runTime = 0;
-        p_ready_rear->next = p;
-        p_ready_rear = p_ready_rear->next;
+        create(p);
     }
     process_control();
 }
 
 void insert()
 {
-    
+    int *tag = 0;
+    string ID;
+    cout << "输入 ID" << endl;
+    cin >> ID;
+
+    verify(ID, p_ready, tag);
+    verify(ID, p_wait0, tag);
+    verify(ID, p_wait1, tag);
+    verify(ID, p_wait2, tag);
+
+    if (p_source == NULL)
+        *tag = 1;
+    if (*tag == 0)
+    {
+        p = p_source;
+        p_source = p_source->next;
+        strcpy(p->ID, ID);
+        create(p);
+    }
+    else
+    {
+        cout << "创建失败" << endl;
+    }
 }
 
 void process_control()
@@ -152,18 +168,45 @@ void process_control()
     p_ready = p_ready->next;
 }
 
+void create(PCB* p)
+{
+    cout << "输入进程名称" << endl;
+    cin >> p->name;
+    cout << "输入运行时间" << endl;
+    cin >> p->totalTime;
+    p->status = 0;
+    p->next = NULL;
+    p->remainingTime = p->totalTime;
+    p->runTime = 0;
+    p_ready_rear->next = p;
+    p_ready_rear = p_ready_rear->next;
+}
+
+void verify(string ID, PCB* p, int* tag)
+{
+    while (p != NULL)
+    {
+        if (strcmp(p->id, ID) == 0)
+        {
+            *tag = 1;
+            break;
+        }
+        p = p->next;
+    }
+}
+
 void show()
 {
     PCB *p;
     cout << "---------------" << endl;
     cout << "正在运行的进程 " << endl;
-    cout << "ID:" << p_run->ID << " Name:" << p_run->name << " 总时间:"<<p_run->time<<" 已完成时间 : "<<p_run->ytime<<" 未完成时间 : "<<p_run->wtime << endl;
+    cout << "ID:" << p_run->id << " Name:" << p_run->name << " 总时间:" << p_run->totalTime << " 已完成时间 : " << p_run->runTime << " 未完成时间 : " << p_run->remainingTime << endl;
     cout << "---------------" << endl;
     p = p_ready;
     cout << "就绪的进程 " << endl;
     while (p != NULL)
     {
-        cout << "ID:" << p->ID << " Name:" << p->name << " 总时间:" << p->time << " 已完成时间 : "<<p->ytime<<" 未完成时间 : "<<p->wtime<<endl;
+        cout << "ID:" << p->id << " Name:" << p->name << " 总时间:" << p->totalTime << " 已完成时间 : " << p->runTime << " 未完成时间 : " << p->remainingTime << endl;
         p = p->next;
     }
     cout << "---------------" << endl;
@@ -171,7 +214,7 @@ void show()
     cout << "等待 IO 的进程 " << endl;
     while (p != NULL)
     {
-        cout << "ID:" << p->ID << " Name:" << p->name << " 总时间:" << p->time << " 已完成时间 : "<<p->ytime<<" 未完成时间 : "<<p->wtime<<endl;
+        cout << "ID:" << p->id << " Name:" << p->name << " 总时间:" << p->totalTime << " 已完成时间 : " << p->runTime << " 未完成时间 : " << p->remainingTime << endl;
         p = p->next;
     }
     cout << "---------------" << endl;
@@ -179,7 +222,7 @@ void show()
     cout << "进程 sleep 的进程 " << endl;
     while (p != NULL)
     {
-        cout << "ID:" << p->ID << " Name:" << p->name << " 总时间:" << p->time << " 已完成时间 : "<<p->ytime<<" 未完成时间 : "<<p->wtime<<endl;
+        cout << "ID:" << p->id << " Name:" << p->name << " 总时间:" << p->totalTime << " 已完成时间 : " << p->runTime << " 未完成时间 : " << p->remainingTime << endl;
         p = p->next;
     }
     cout << "---------------" << endl;
@@ -187,7 +230,7 @@ void show()
     cout << "等待解锁的进程 " << endl;
     while (p != NULL)
     {
-        cout << "ID:" << p->ID << " Name:" << p->name << " 总时间:" << p->time << " 已完成时间 : "<<p->ytime<<" 未完成时间 : "<<p->wtime<<endl;
+        cout << "ID:" << p->id << " Name:" << p->name << " 总时间:" << p->totalTime << " 已完成时间 : " << p->runTime << " 未完成时间 : " << p->remainingTime << endl;
         p = p->next;
     }
     cout << "---------------" << endl;
