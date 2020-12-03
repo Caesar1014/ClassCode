@@ -7,7 +7,6 @@ using namespace std;
 typedef struct PCB
 {
     string name;        //进程名
-    int status;         //进程状态
     PCB *next;          //进程队列指针
 } PCB, *LinkList;
 
