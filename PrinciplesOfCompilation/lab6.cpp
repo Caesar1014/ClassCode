@@ -12,11 +12,15 @@ typedef set<char> CharSet;
 // NFA状态
 typedef struct NfaState
 {
-	int index;		// NFA状态的状态号
 	char input;		// NFA状态弧上的值，默认为'#'
 	int chTrans;	// NFA状态弧转移到的状态号，默认为-1
+
+	int index;		// NFA状态的状态号
 	IntSet epTrans;	// 当前状态通过ε转移到的状态号集合
 }NfaState;
+
+NfaState NfaStates[MAX];
+int nfaStateNum = 0;		// NFA状态总数
 
 typedef struct NFA
 {
@@ -24,8 +28,11 @@ typedef struct NFA
 	NfaState* tail;	// NFA尾指针
 }NFA;
 
-NfaState NfaStates[MAX];
-int nfaStateNum = 0;		// NFA状态总数
+bool isLetter(char ch)
+{
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
+}
+
 
 // 对字符串s进行预处理
 void preprocess(string& s)
@@ -34,9 +41,9 @@ void preprocess(string& s)
 
 	while (i < length)
 	{
-		if ((s[i] >= 'a' && s[i] <= 'z') || s[i] == '*' || s[i] == ')')
+		if (isLetter(s[i]) || s[i] == '*' || s[i] == ')')
 		{
-			if ((s[i + 1] >= 'a' && s[i + 1] <= 'z') || s[i + 1] == '(')
+			if (isLetter(s[i+1]) || s[i + 1] == '(')
 			{
 				s.insert(i + 1, 1, '&');
 				length++;
@@ -72,7 +79,7 @@ string infixToSuffix(string s)
 
 	for (int i = 0; i < length; i++)
 	{
-		if (s[i] >= 'a' && s[i] <= 'z')
+		if (isLetter(s[i]))
 			str += s[i];
 		else
 		{
@@ -166,7 +173,7 @@ NFA strToNfa(string s)
 
 	for (unsigned i = 0; i < s.size(); i++)
 	{
-		if (s[i] >= 'a' && s[i] <= 'z')		// 遇到操作数
+		if (isLetter(s[i]))		// 遇到操作数
 		{
 			NFA n = createNFA(nfaStateNum);	// 新建一个NFA
 			add(n.head, n.tail, s[i]);		// NFA的头指向尾，弧上的值为s[i]
@@ -258,24 +265,47 @@ typedef struct Edge
 	int Trans;	// 弧所指向的状态号
 } Edge;
 
+// 定义DFA状态
 typedef struct DfaState
 {
-	bool isEnd;
-	int index;
-	IntSet closure;
-	int edgeNum;
-	Edge edges[10];
+	bool isEnd;			// 是否为终态，是为true，不是为false
+
+	int index;			// DFA状态的状态号
+	IntSet closure;		// NFA的ε-move()闭包
+
+	int edgeNum;		// DFA状态上的射出弧数
+	Edge edges[10];		// DFA状态上的射出弧
 } DfaStete;
 
+DfaState DfaStates[MAX];		// DFA状态数组
+int dfaStateNum = 0;			// DFA状态总数
+
+// 定义DFA结构
 typedef struct DFA
 {
-	int startState;
-    IntSet endStates;
-    CharSet terminator;
-    int trans[MAX][26];
+	int startState;		// DFA初态
+	
+    IntSet endStates;	// DFA终态集
+    CharSet terminator;	// DFA终结符集
+
+    int trans[MAX][26];	// DFA的转移矩阵
 } DFA;
 
+NFA转DFA主函数
+DFA nfaToDfa(NFA n, string str)
+{
+	// 参数为nfa和后缀表达式
 
+	cout<<"***************     DFA     ***************"<<endl<<endl; 
+	DFA d;
+	IntSet states;	// 定义一个存储整数集合的集合，用于判断求出一个状态集s的ε-cloure(move(ch))后是否出现新状态
+
+	memset(d.trans, -1, sizeof(d.trans));
+
+	for(int i = 0; i < str.size(); i++) {
+		
+	}
+}
 
 
 int main()
