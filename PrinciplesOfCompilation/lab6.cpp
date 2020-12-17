@@ -132,18 +132,6 @@ string infixToSuffix(string s)
 	return str;
 }
 
-void init()
-{
-	int i;
-	for (i = 0; i < MAX; i++)
-	{
-
-		NfaStates[i].index = i;
-		NfaStates[i].input = '#';
-		NfaStates[i].chTrans = -1;
-	}
-}
-
 NFA createNFA(int sum)
 {
 	NFA n;
@@ -399,13 +387,6 @@ DFA nfaToDfa(NFA n, string str)
 		{
 			IntSet temp = moveEpCloure(DfaStates[num].closure, it); // 计算每个终结符的ε-cloure(move(ch))
 
-			cout << endl;
-			for (auto it : temp)
-			{
-				cout << it << ' ';
-			}
-			cout << endl;
-
 			if (!states.count(temp) && !temp.empty())
 			{
 				// 如果求出来的状态集不为空且与之前求出来的状态集不同，则新建一个DFA状态
@@ -462,8 +443,6 @@ DFA nfaToDfa(NFA n, string str)
 // 打印DFA函数
 void printDFA(DFA d)
 {
-
-	int i, j;
 	cout << "DFA总共有" << dfaStateNum << "个状态，"
 		 << "初态为" << d.startState << endl
 		 << endl;
@@ -485,9 +464,9 @@ void printDFA(DFA d)
 		 << endl;
 
 	cout << "转移函数为：" << endl;
-	for (i = 0; i < dfaStateNum; i++)
+	for (int i = 0; i < dfaStateNum; i++)
 	{
-		for (j = 0; j < DfaStates[i].edgeNum; j++)
+		for (int j = 0; j < DfaStates[i].edgeNum; j++)
 		{
 
 			if (DfaStates[DfaStates[i].edges[j].Trans].isEnd == true)
@@ -513,7 +492,304 @@ void printDFA(DFA d)
 	}
 	cout << endl;
 
-	for (i = 0; i < dfaStateNum; i++)
+	for (int i = 0; i < dfaStateNum; i++)
+	{
+
+		if (d.endStates.count(i))
+		{
+			cout << '<' << i << ">  ";
+		}
+		else
+		{
+			cout << ' ' << i << "   ";
+		}
+
+		for (int j = 0; j < 26; j++)
+		{
+			if (d.terminator.count(j + 'a'))
+			{
+				if (d.trans[i][j] != -1)
+				{
+					cout << d.trans[i][j] << "   ";
+				}
+				else
+				{
+					cout << "    ";
+				}
+			}
+		}
+
+		cout << endl;
+	}
+}
+
+/******************DFA的最小化******************/
+
+IntSet s[MAX];				// 划分出来的集合数组
+DfaState minDfaStates[MAX]; // minDfa状态数组
+
+int minDfaStateNum = 0; // minDfa的状态总数，同时也是划分出的集合数
+
+typedef struct stateSet
+{
+	int index; // 该状态集所能转换到的状态集标号
+	IntSet s;  // 该状态集中的DFA状态号
+} stateSet;
+
+// 当前划分总数为count，返回状态n所属的状态集标号i
+int findSetNum(int count, int n)
+{
+	for (int i = 0; i < count; i++)
+	{
+		if (s[i].count(n))
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+// 最小化DFA
+DFA minDFA(DFA d)
+{
+	cout << endl
+		 << "*************     minDFA     **************" << endl
+		 << endl;
+
+	DFA minDfa;
+	minDfa.terminator = d.terminator;
+
+	memset(minDfa.trans, -1, sizeof(minDfa.trans));
+
+	// 做第一次划分，即将终态与非终态分开
+	bool endFlag = true;
+	for (int i = 0; i < dfaStateNum; i++)
+	{
+		if (DfaStates[i].isEnd == false)
+		{
+			endFlag = false;
+			minDfaStateNum = 2;
+			s[1].insert(DfaStates[i].index);
+		}
+		else
+		{
+			s[0].insert(DfaStates[i].index);
+		}
+	}
+
+	if (endFlag)
+	{
+		// 如果标志为真，则所有DFA状态都是终态
+		minDfaStateNum = 1;
+	}
+
+	bool cutFlag = true; // 上一次是否产生新的划分的标志
+	while (cutFlag)
+	{
+		int cutCount = 0; // 需要产生新的划分的数量
+		for (int i = 0; i < minDfaStateNum; i++)
+		{
+			for (auto it : d.terminator)
+			{
+				int setNum = 0;	   // 当前缓冲区的状态集个数
+				stateSet temp[20]; // 划分状态集 “缓冲区”
+
+				for (auto iter : s[i])
+				{
+					bool epFlag = true; // 判断该集合中是否存在没有该终结符对应的转换弧的状态
+					// 遍历该状态的所有边
+					for (int j = 0; j < DfaStates[iter].edgeNum; j++)
+					{
+						if (DfaStates[iter].edges[j].input == it)
+						{
+							epFlag = false;
+
+							// 计算该状态转换到的状态集的标号
+							int transNum = findSetNum(minDfaStateNum, DfaStates[iter].edges[j].Trans);
+
+							int curSetNum = 0;
+							// 遍历缓冲区，寻找是否存在到达这个标号的状态集
+							while ((temp[curSetNum].index != transNum) && (curSetNum < setNum))
+							{
+								curSetNum++;
+							}
+							// 缓冲区中不存在到达这个标号的状态集
+							if (curSetNum == setNum)
+							{
+								// 在缓冲区中新建一个状态集
+								temp[setNum].index = transNum;
+								temp[setNum].s.insert(iter);
+								setNum++;
+							}
+							else
+							{
+								temp[curSetNum].s.insert(iter);
+							}
+						}
+					}
+					// 如果该状态不存在与该终结符对应的转换弧
+					if (epFlag)
+					{
+						// 寻找缓冲区中是否存在转换到标号为-1的状态集
+						// 这里规定如果不存在转换弧，则它所到达的状态集标号为-1
+						int curSetNum = 0;
+						while ((temp[curSetNum].index != -1) && (curSetNum < setNum))
+						{
+							curSetNum++;
+						}
+						// 如果不存在这样的状态集
+						if (curSetNum == setNum)
+						{
+							// 在缓冲区中新建一个状态集
+							temp[setNum].index = -1;
+							temp[setNum].s.insert(iter);
+							setNum++;
+						}
+						else
+						{
+							temp[curSetNum].s.insert(iter);
+						}
+					}
+				}
+
+				// 如果缓冲区中的状态集个数大于1，表示同一个状态集中的元素能转换到不同的状态集，则需要划分
+				if (setNum > 1)
+				{
+					cutCount++; // 划分次数加一
+
+					// 为每组划分创建新的DFA状态
+					for (int j = 1; j < setNum; j++) // 遍历缓冲区，这里从1开始是将第0组划分留在原集合中
+					{
+						for (auto t : temp[j].s)
+						{
+							s[i].erase(t);				 // 在原来的状态集中删除该状态
+							s[minDfaStateNum].insert(t); // 在新的状态集中加入该状态
+						}
+
+						minDfaStateNum++; // 最小化DFA状态总数加一
+					}
+				}
+			}
+		}
+		// 如果需要划分的次数为0，表示本次不需要进行划分
+		if (cutCount == 0)
+		{
+			cutFlag = false;
+		}
+	}
+
+	// 遍历每个划分好的状态集
+	for (int i = 0; i < minDfaStateNum; i++)
+	{
+		for (auto y : s[i])
+		{
+			if (y == d.startState) // 如果当前状态为DFA的初态，则该最小化DFA状态也为初态
+			{
+				minDfa.startState = i;
+			}
+
+			if (d.endStates.count(y)) // 如果当前状态是终态，则该最小化DFA状态也为终态
+			{
+
+				minDfaStates[i].isEnd = true;
+				minDfa.endStates.insert(i); // 将该最小化DFA状态加入终态集中
+			}
+
+			// 遍历该DFA状态的每条弧，为最小化DFA创建弧
+			for (int j = 0; j < DfaStates[y].edgeNum; j++)
+			{
+				//遍历划分好的状态集合，找出该弧转移到的状态现在属于哪个集合
+				for (int t = 0; t < minDfaStateNum; t++)
+				{
+					if (s[t].count(DfaStates[y].edges[j].Trans))
+					{
+
+						bool haveEdge = false; // 判断该弧是否已经创建的标志
+						// 遍历已创建的弧
+						for (int l = 0; l < minDfaStates[i].edgeNum; l++)
+						{
+							// 如果该弧已经存在
+							if ((minDfaStates[i].edges[l].input == DfaStates[y].edges[j].input) && (minDfaStates[i].edges[l].Trans == t))
+							{
+								haveEdge = true;
+							}
+						}
+
+						if (!haveEdge) // 如果该弧不存在，则创建一条新的弧
+						{
+
+							minDfaStates[i].edges[minDfaStates[i].edgeNum].input = DfaStates[y].edges[j].input; // 弧的值与DFA的相同
+							minDfaStates[i].edges[minDfaStates[i].edgeNum].Trans = t;							// 该弧转移到的状态为这个状态集的标号
+
+							minDfa.trans[i][DfaStates[y].edges[j].input - 'a'] = t; // 更新转移矩阵
+
+							minDfaStates[i].edgeNum++; // 该状态的弧的数目加一
+						}
+
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	return minDfa;
+}
+
+void printMinDFA(DFA d)
+{
+
+	int i, j;
+	cout << "minDFA总共有" << minDfaStateNum << "个状态，"
+		 << "初态为" << d.startState << endl
+		 << endl;
+
+	cout << "有穷字母表为 { ";
+	for (auto it : d.terminator)
+	{
+		cout << it << ' ';
+	}
+	cout << '}' << endl
+		 << endl;
+
+	cout << "终态集为 { ";
+	for (auto it : d.endStates)
+	{
+		cout << it << ' ';
+	}
+	cout << '}' << endl
+		 << endl;
+
+	cout << "转移函数为：" << endl;
+	for (i = 0; i < minDfaStateNum; i++)
+	{
+		for (j = 0; j < minDfaStates[i].edgeNum; j++)
+		{
+
+			if (minDfaStates[minDfaStates[i].edges[j].Trans].isEnd == true)
+			{
+				cout << minDfaStates[i].index << "-->'" << minDfaStates[i].edges[j].input;
+				cout << "'--><" << minDfaStates[i].edges[j].Trans << ">\t";
+			}
+			else
+			{
+				cout << minDfaStates[i].index << "-->'" << minDfaStates[i].edges[j].input;
+				cout << "'-->" << minDfaStates[i].edges[j].Trans << '\t';
+			}
+		}
+		cout << endl;
+	}
+
+	cout << endl
+		 << "转移矩阵为：" << endl
+		 << "     ";
+	for (auto it : d.terminator)
+	{
+		cout << it << "   ";
+	}
+	cout << endl;
+
+	for (i = 0; i < minDfaStateNum; i++)
 	{
 
 		if (d.endStates.count(i))
@@ -542,9 +818,49 @@ void printDFA(DFA d)
 
 		cout << endl;
 	}
+	cout << endl
+		 << "*******************************************";
 }
 
-/******************DFA的最小化******************/
+// 初始化
+void init()
+{
+	int i, j;
+
+	for (i = 0; i < MAX; i++)
+	{
+
+		NfaStates[i].index = i;
+		NfaStates[i].input = '#';
+		NfaStates[i].chTrans = -1;
+	}
+
+	for (i = 0; i < MAX; i++)
+	{
+		DfaStates[i].index = i;
+		DfaStates[i].isEnd = false;
+
+		for (j = 0; j < 10; j++)
+		{
+			DfaStates[i].edges[j].input = '#';
+			DfaStates[i].edges[j].Trans = -1;
+		}
+	}
+
+	for (i = 0; i < MAX; i++)
+	{
+
+		minDfaStates[i].index = i;
+		minDfaStates[i].isEnd = false;
+
+		for (int j = 0; j < 10; j++)
+		{
+
+			minDfaStates[i].edges[j].input = '#';
+			minDfaStates[i].edges[j].Trans = -1;
+		}
+	}
+}
 
 int main()
 {
@@ -555,8 +871,14 @@ int main()
 	str = infixToSuffix(str);
 	cout << str << endl;
 	init();
+
 	NFA n = strToNfa(str);
 	printNFA(n);
+
 	DFA d = nfaToDfa(n, str);
 	printDFA(d);
+
+	DFA minDfa = minDFA(d);
+	printMinDFA(minDfa);
+	
 }
